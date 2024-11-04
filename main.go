@@ -2,8 +2,11 @@ package main
 
 import (
 	"chitfund/config"
+	"chitfund/httpclient"
 	"chitfund/models"
+
 	"chitfund/routes"
+	// "log"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -12,16 +15,18 @@ import (
 func main() {
 	r := gin.Default()
 
-	// Initialize database
-
 	db := config.InitDB()
+
+	cfg := config.LoadConfig()
+
+	client := httpclient.NewHttpClient()
+
+	httpService := httpclient.NewService(cfg, client)
 
 	addSampleCommunityData(db)
 
-	// Set up routes
-	routes.RegisterUserRoutes(r, db)
+	routes.RegisterRoutes(r, db, httpService)
 
-	// Start server
 	r.Run(":8080")
 }
 

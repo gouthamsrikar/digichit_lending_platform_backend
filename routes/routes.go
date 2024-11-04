@@ -2,13 +2,22 @@ package routes
 
 import (
 	"chitfund/controllers"
+	"chitfund/httpclient"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterUserRoutes(router *gin.Engine, db *gorm.DB) {
+func RegisterRoutes(router *gin.Engine, db *gorm.DB, httpService *httpclient.Service) {
+
+	transactionrGroup := router.Group("/init")
+	{
+		transactionrGroup.POST("/", func(c *gin.Context) {
+			controllers.InitTransaction(c, db, httpService)
+		})
+	}
+
 	userGroup := router.Group("/user")
 	{
 		userGroup.POST("/", func(c *gin.Context) {
@@ -21,6 +30,10 @@ func RegisterUserRoutes(router *gin.Engine, db *gorm.DB) {
 		userGroup.GET("/:phone_number", func(c *gin.Context) {
 			fmt.Print("get user request")
 			controllers.GetUserByPhoneNumber(c, db)
+		})
+
+		userGroup.POST("/idg", func(c *gin.Context) {
+			controllers.CreateUserWithIdempotencyId(c, db, httpService)
 		})
 
 	}
