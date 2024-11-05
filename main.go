@@ -8,12 +8,21 @@ import (
 	"chitfund/routes"
 	// "log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 func main() {
 	r := gin.Default()
+	// r.Use(corsMiddleware())
+
+	r.Use(cors.New(cors.Config{
+		AllowMethods:     []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+		AllowCredentials: true,
+		AllowAllOrigins:  true,
+		AllowHeaders:     []string{"authorization", "user-agent", "referer", "content-type"},
+	}))
 
 	db := config.InitDB()
 
@@ -38,4 +47,19 @@ func addSampleCommunityData(db *gorm.DB) {
 		{CommunityName: "Swiggy Driver Gachibowli Fund", MonthlyDeposit: 600.0, TotalFund: 35000.0, InterestRate: 0.1, AdminName: "Steve Martin", AdminUserID: "", RepaymentPeriodInMonths: 6, CommunityDescription: "Community fund created for the aid of Swiggy Delivery Partners in Gachibowli area", UserCount: 16, MaxCount: 25},
 	}
 	db.Create(&sampleCommunities)
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
 }
