@@ -18,7 +18,7 @@ func FetchAllCommunities(c *gin.Context, db *gorm.DB) {
 	}
 
 	var joinedCommunities []models.JoinCommunity
-	if err := db.Find(&joinedCommunities).Where("user_id=?", userId).Error; err != nil {
+	if err := db.Where("user_id = ?", userId).Find(&joinedCommunities).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
