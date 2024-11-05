@@ -36,7 +36,7 @@ func main() {
 
 	routes.RegisterRoutes(r, db, httpService)
 
-	r.Run(":8080")
+	r.Run(":443")
 }
 
 func addSampleCommunityData(db *gorm.DB) {
