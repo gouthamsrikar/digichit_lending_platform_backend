@@ -5,7 +5,9 @@ import (
 	"chitfund/models"
 	"chitfund/services"
 	"fmt"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -80,17 +82,23 @@ func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpc
 		avgBalance = (totalCreditAmount - totalDebitAmount) / float64(len(bankStatement.MonthWiseAnalysis))
 	}
 
+	currentTime := time.Now()
+
+	// Format the date to DD/MM/YYYY
+	formattedDate := currentTime.Format("02/01/2006")
+
 	user = models.User{
 		Name:               pan.Name,
 		PanNo:              string(pan.KeyID[0]) + "XXXXXXX" + string(pan.KeyID[len(pan.KeyID)-2:]),
 		BankAccountNo:      bankStatement.AccountNumber,
 		CreditToDebitRatio: creditToDebitRatio,
 		CommunityLevel:     "STARTER",
-		DigitScore:         12,
+		DigitScore:         0,
 		MonthlyIncome:      monthlyIncome,
 		AvgBalance:         avgBalance,
-		EmiToIncomeRatio:   12,
+		EmiToIncomeRatio:   0,
 		PhoneNumber:        request.PhoneNumber,
+		JoinDate:           formattedDate,
 	}
 
 	err = services.CreateUser(db, &user)
@@ -123,6 +131,30 @@ func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpc
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	digitScore := calculateCombinedFinancialScore(bankStatements)
+	var communityLevel string
+
+	if digitScore >= 80 {
+		communityLevel = "PREMIUM"
+	} else if digitScore >= 65 {
+		communityLevel = "STANDARD"
+	} else {
+		communityLevel = "STARTER"
+	}
+
+	err = db.Model(&models.User{}).Where("id = ?", user.ID).Updates(
+		map[string]interface{}{
+			"digit_score":     digitScore,
+			"community_level": communityLevel,
+		}).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to update"})
+		return
+	}
+
+	user.DigitScore = digitScore
+	user.CommunityLevel = communityLevel
 
 	c.JSON(http.StatusCreated, gin.H{"user": user, "bank_statement": bankStatements})
 }
@@ -159,4 +191,46 @@ func GetUserByPhoneNumber(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+func calculateCombinedFinancialScore(statements []models.BankStatement) int {
+	var totalCreditSum, totalDebitSum, totalAverageEodBalance float64
+	var totalDebitTransactions, totalCreditTransactions int
+
+	for _, statement := range statements {
+		totalCreditSum += statement.TotalCreditAmount
+		totalDebitSum += statement.TotalDebitAmount
+		totalDebitTransactions += statement.NoOfDebitTransactions
+		totalCreditTransactions += statement.NoOfCreditTransactions
+		totalAverageEodBalance += statement.AverageEodBalance
+	}
+
+	entryCount := float64(len(statements))
+	if entryCount == 0 {
+		return 0
+	}
+
+	avgCredit := totalCreditSum / entryCount
+	avgDebit := totalDebitSum / entryCount
+	avgEodBalance := totalAverageEodBalance / entryCount
+	avgTransactions := float64(totalDebitTransactions+totalCreditTransactions) / entryCount
+
+	incomeScore := math.Min((avgCredit/100000)*20, 20)
+
+	balanceScore := math.Min((avgEodBalance/(avgCredit+1))*15, 15)
+
+	creditDebitRatio := 1.0
+	if avgDebit > 0 {
+		creditDebitRatio = avgCredit / avgDebit
+	}
+	creditDebitScore := 15.0
+	if creditDebitRatio < 0.95 {
+		creditDebitScore = math.Min(creditDebitRatio*15, 15)
+	}
+
+	activityScore := math.Min((avgTransactions/50)*10, 10)
+
+	combinedScore := (incomeScore + balanceScore + creditDebitScore + activityScore) / 50 * 100
+
+	return int(math.Round(combinedScore))
 }
