@@ -4,6 +4,7 @@ import (
 	"chitfund/controllers"
 	"chitfund/httpclient"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,6 +16,28 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, httpService *httpclient.Ser
 	{
 		transactionrGroup.POST("/", func(c *gin.Context) {
 			controllers.InitTransaction(c, db, httpService)
+		})
+	}
+
+	healthGroup := router.Group("/health")
+	{
+		healthGroup.POST("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
+		})
+		healthGroup.GET("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
+		})
+		healthGroup.OPTIONS("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
+		})
+		healthGroup.PUT("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
+		})
+		healthGroup.PATCH("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
+		})
+		healthGroup.DELETE("/", func(c *gin.Context) {
+			c.JSON(http.StatusCreated, gin.H{})
 		})
 	}
 
