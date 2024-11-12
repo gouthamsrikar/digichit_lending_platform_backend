@@ -4,18 +4,20 @@ import "gorm.io/gorm"
 
 type User struct {
 	gorm.Model
-	ID                 uint    `gorm:"primaryKey"`
-	Name               string  `json:"name"`
-	JoinDate           string  `json:"join_date"`
-	PanNo              string  `json:"pan_no"`
-	BankAccountNo      string  `json:"bank_account_no"`
-	CommunityLevel     string  `json:"community_level"`
-	DigitScore         int     `json:"digit_score"`
-	MonthlyIncome      float64 `json:"monthly_income"`
-	AvgBalance         float64 `json:"avg_balance"`
-	EmiToIncomeRatio   float64 `json:"emi_to_income_ratio"`
-	CreditToDebitRatio float64 `json:"credit_to_debit_ratio"`
-	PhoneNumber        string  `json:"phone_number"`
+	ID                   uint    `gorm:"primaryKey"`
+	Name                 string  `json:"name"`
+	JoinDate             string  `json:"join_date"`
+	PanNo                string  `json:"pan_no"`
+	BankAccountNo        string  `json:"bank_account_no"`
+	CommunityLevel       string  `json:"community_level"`
+	DigitScore           int     `json:"digit_score"`
+	MonthlyIncome        float64 `json:"monthly_income"`
+	AvgBalance           float64 `json:"avg_balance"`
+	EmiToIncomeRatio     float64 `json:"emi_to_income_ratio"`
+	CreditToDebitRatio   float64 `json:"credit_to_debit_ratio"`
+	PhoneNumber          string  `json:"phone_number"`
+	BankStatementFetched bool    `json:"bank_statement_fetch"`
+	IdempotencyId        string  `json:"idempotency_id"`
 }
 
 type MonthAnalysis struct {

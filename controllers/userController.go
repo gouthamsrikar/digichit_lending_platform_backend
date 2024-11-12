@@ -30,6 +30,7 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 }
 
 func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpclient.Service) {
+
 	var request struct {
 		IdempotencyId string `json:"idempotency_id"`
 		PhoneNumber   string `json:"phone_number"`
@@ -42,7 +43,8 @@ func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpc
 	var user models.User
 
 	result := db.Where("phone_number = ?", request.PhoneNumber).First(&user)
-	if result.Error == nil {
+	// && user.BankStatementFetched
+	if result.Error == nil && user.BankStatementFetched {
 
 		bankStatement, err := GetBankStatementsByUserID(db, user.ID)
 
@@ -59,6 +61,30 @@ func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpc
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if response.Data.KeyDetails.BANKSTATEMENT.KeyName == "" && len(response.Data.KeyDetails.BANKSTATEMENT.KeyData) == 0 {
+		pan := response.Data.KeyDetails.PAN.KeyData[0]
+		currentTime := time.Now()
+
+		formattedDate := currentTime.Format("02/01/2006")
+		user := models.User{
+			Name:                 pan.Name,
+			PanNo:                string(pan.KeyID[0]) + "XXXXXXX" + string(pan.KeyID[len(pan.KeyID)-2:]),
+			PhoneNumber:          request.PhoneNumber,
+			JoinDate:             formattedDate,
+			BankStatementFetched: false,
+		}
+
+		err = services.CreateUser(db, &user)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"user": user, "bank_statement": nil})
+
 	}
 
 	pan := response.Data.KeyDetails.PAN.KeyData[0]
@@ -88,17 +114,18 @@ func CreateUserWithIdempotencyId(c *gin.Context, db *gorm.DB, httpService *httpc
 	formattedDate := currentTime.Format("02/01/2006")
 
 	user = models.User{
-		Name:               pan.Name,
-		PanNo:              string(pan.KeyID[0]) + "XXXXXXX" + string(pan.KeyID[len(pan.KeyID)-2:]),
-		BankAccountNo:      bankStatement.AccountNumber,
-		CreditToDebitRatio: creditToDebitRatio,
-		CommunityLevel:     "STARTER",
-		DigitScore:         0,
-		MonthlyIncome:      monthlyIncome,
-		AvgBalance:         avgBalance,
-		EmiToIncomeRatio:   0,
-		PhoneNumber:        request.PhoneNumber,
-		JoinDate:           formattedDate,
+		Name:                 pan.Name,
+		PanNo:                string(pan.KeyID[0]) + "XXXXXXX" + string(pan.KeyID[len(pan.KeyID)-2:]),
+		BankAccountNo:        bankStatement.AccountNumber,
+		CreditToDebitRatio:   creditToDebitRatio,
+		CommunityLevel:       "STARTER",
+		DigitScore:           0,
+		MonthlyIncome:        monthlyIncome,
+		AvgBalance:           avgBalance,
+		EmiToIncomeRatio:     0,
+		PhoneNumber:          request.PhoneNumber,
+		JoinDate:             formattedDate,
+		BankStatementFetched: true,
 	}
 
 	err = services.CreateUser(db, &user)
